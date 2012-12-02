@@ -43,18 +43,21 @@ function createApp() {
   var staticFiles = express['static'](path.join(__dirname, 'public'));
 
   var app = express();
-  app.set('view engine', 'jade');
-  app.set('view cache', config.view_cache);
-  app.set('views', path.join(__dirname, 'views'));
-  app.use(timeouts);
-  app.use(express.limit(config.size_limit));
-  app.use(express.compress());
-  app.use(stylusMiddleware);
-  app.use(staticFiles);
-  app.use(express.bodyParser());
-  app.use(express.methodOverride());
-  app.use(app.router);
-  app.use(errorHandler);
+  app
+    .set('view engine', 'jade')
+    .set('view cache', config.view_cache)
+    .set('views', path.join(__dirname, 'views'))
+    .use(timeouts)
+    .use(express.limit(config.size_limit))
+    .use(express.compress())
+    .use(stylusMiddleware)
+    .use(staticFiles)
+    .use(express.bodyParser())
+    .use(express.methodOverride())
+    .use(app.router)
+    .use(notFound)
+    .use(errorHandler);
+
   return app;
 
   function compileStylus(str, path) {
@@ -65,10 +68,14 @@ function createApp() {
 
   function errorHandler(err, req, res, next) {
     console.log('error handler:', err.stack || err);
-    return res.send('something went wrong');
+    return res.send(500, 'Sorry, something went wrong.');
   }
 }
 
 function showLanding(req, res, next) {
   res.render('landing');
+}
+
+function notFound(req, res, next) {
+  res.send(404, 'Nothing here.');
 }
