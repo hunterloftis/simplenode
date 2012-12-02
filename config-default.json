@@ -1,0 +1,8 @@
+{
+  "stylus_force": true,
+  "stylus_debug": true,
+  "view_cache": false,
+  "http_port": 3000,
+  "timeout": 10000,
+  "size_limit": "500kb"
+}

@@ -1,4 +1,5 @@
 node_modules
 npm-debug.log
-bigassets
+assets
 .DS_Store
+config-private.json

@@ -1,39 +1,72 @@
-HOST = 198.74.52.80
+HOST = 50.116.43.128
+SERVICE_NAME = simplenode
 NODE_VERSION = 0.8.15
-INSTALL_DIR = /root/node
+EXCLUDE_LIST = --exclude 'authorized_keys' --exclude 'config-*.json' --exclude 'node_modules' --exclude '.git' --exclude 'assets'
+INSTALL_DIR = /root/simplenode/
 
 help:
-	@echo 'To set up on a simple Ubuntu 64-bit VPS:'
 	@echo ''
-	@echo '  `make start` -> make sure your app works'
-	@echo '  `nano makefile` -> edit config'
-	@echo '  `make deploy` -> rsync files to the remote machine'
-	@echo '  `make remote-install` -> install environment, node binary, and service'
-	@echo '  `make remote-start` -> start your server'
+	@echo '1. make getkey-local         -> create authorized_keys from your id_rsa.pub'
+	@echo '2. make provision-staging    -> add ssh keys, update host, install node.js, create service'
+	@echo '3. make deploy-staging       -> deploy application code and config, restart application'
+	@echo ''
+	@echo 'see makefile for: authorize, refresh, configure, restart, stop'
+	@echo ''
 
-start:
+# local
+
+start-local: osx-start
+getkey-local: osx-getkey
+
+# staging
+
+authorize-staging:
+	rsync -v ./authorized_keys root@$(HOST):/root/.ssh/
+
+refresh-staging:
+	rsync -v ./makefile root@$(HOST):$(INSTALL_DIR)
+
+configure-staging:
+	scp config-default.json root@$(HOST):$(INSTALL_DIR)/config-default.json
+	scp config-staging.json root@$(HOST):$(INSTALL_DIR)/config-private.json
+
+provision-staging:
+	make authorize-staging
+	make refresh-staging
+	ssh root@$(HOST) "sudo apt-get install --yes make && cd $(INSTALL_DIR) && make linode-provision"
+
+deploy-staging:
+	make refresh-staging
+	make stop-staging
+	rsync -rv $(EXCLUDE_LIST) ./* root@$(HOST):$(INSTALL_DIR)
+	make configure-staging
+	make restart-staging
+
+restart-staging:
+	ssh root@$(HOST) "cd $(INSTALL_DIR) && make linode-restart"
+
+stop-staging:
+	ssh root@$(HOST) "cd $(INSTALL_DIR) && make linode-stop"
+
+
+
+
+
+################################## Utilities
+
+# osx
+
+osx-start:
 	npm start
 
-deploy:
-	rsync -rv --exclude 'node_modules' --exclude '.git' ./* root@$(HOST):$(INSTALL_DIR)
-
-remote-install:
-	ssh root@$(HOST) "cd $(INSTALL_DIR) && sudo apt-get install --yes make && make install"
-
-remote-start:
-	ssh root@$(HOST) "cd $(INSTALL_DIR) && npm install && start node"
+osx-getkey:
+	cp -i ~/.ssh/id_rsa.pub ./authorized_keys
+	chmod 0700 ./authorized_keys;
 
 
+# linode
 
-remote-stop:
-	ssh root@$(HOST) "stop node"
-
-remote-shell:
-	ssh root@$(HOST)
-
-install: install-env install-node install-service
-
-install-env:
+linode-provision:
 	apt-get update --yes
 	apt-get upgrade --yes
 	apt-get install --yes build-essential git-core libssl-dev curl
@@ -42,25 +75,36 @@ install-env:
 	apt-get install --yes graphicsmagick libgraphicsmagick1-dev
 	apt-get install --yes ntpdate
 
-install-node:
-	cd /tmp && wget http://nodejs.org/dist/v$(NODE_VERSION)/node-v$(NODE_VERSION).tar.gz && tar xzvf node-v$(NODE_VERSION).tar.gz
-	cd /tmp/node-v$(NODE_VERSION) && make install
+	if [ `node --version` != "v$(NODE_VERSION)" ]; then \
+	cd /tmp \
+	&& wget http://nodejs.org/dist/v$(NODE_VERSION)/node-v$(NODE_VERSION).tar.gz \
+	&& tar xzvf node-v$(NODE_VERSION).tar.gz \
+	&& cd /tmp/node-v$(NODE_VERSION) \
+	&& make install; fi
 
-install-service:
-	@echo '' > /etc/init/node.conf
-	@echo 'description "node service"' >> /etc/init/node.conf
-	@echo 'start on filesystem or runlevel [2345]' >> /etc/init/node.conf
-	@echo 'stop on runlevel [!2345]' >> /etc/init/node.conf
-	@echo 'respawn' >> /etc/init/node.conf
-	@echo 'respawn limit 10 5' >> /etc/init/node.conf
-	@echo 'umask 022' >> /etc/init/node.conf
-	@echo 'script' >> /etc/init/node.conf
-	@echo 'cd $(INSTALL_DIR)' >> /etc/init/node.conf
-	@echo 'npm start >> $(INSTALL_DIR).log 2>&1' >> /etc/init/node.conf
-	@echo 'end script' >> /etc/init/node.conf
-	@echo 'created /etc/init/node.conf'
+	@echo '' > /etc/init/$(SERVICE_NAME).conf
+	@echo 'description "$(SERVICE_NAME) service"' >> /etc/init/$(SERVICE_NAME).conf
+	@echo 'start on filesystem or runlevel [2345]' >> /etc/init/$(SERVICE_NAME).conf
+	@echo 'stop on runlevel [!2345]' >> /etc/init/$(SERVICE_NAME).conf
+	@echo 'respawn' >> /etc/init/$(SERVICE_NAME).conf
+	@echo 'respawn limit 60 60' >> /etc/init/$(SERVICE_NAME).conf
+	@echo 'umask 022' >> /etc/init/$(SERVICE_NAME).conf
+	@echo 'script' >> /etc/init/$(SERVICE_NAME).conf
+	@echo 'cd $(INSTALL_DIR)' >> /etc/init/$(SERVICE_NAME).conf
+	@echo 'npm start >> $(INSTALL_DIR).log 2>&1' >> /etc/init/$(SERVICE_NAME).conf
+	@echo 'end script' >> /etc/init/$(SERVICE_NAME).conf
+	@echo 'created /etc/init/$(SERVICE_NAME).conf'
+
+linode-restart:
+	stop $(SERVICE_NAME) &2>1
+	npm install
+	start $(SERVICE_NAME)
+
+linode-stop:
+	stop $(SERVICE_NAME) &2>1
 
 
+# phony
 
-.PHONY: help start deploy remote-install remote-start remote-shell install install-env install-node install-service
+.PHONY: help restart-local enable-staging provision-staging configure-staging deploy-staging restart-staging linode-provision linode-restart
 
