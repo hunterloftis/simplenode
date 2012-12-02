@@ -1,5 +1,6 @@
 HOST = 50.116.43.128
 SERVICE_NAME = simplenode
+
 NODE_VERSION = 0.8.15
 EXCLUDE_LIST = --exclude 'authorized_keys' --exclude 'config-*.json' --exclude 'node_modules' --exclude '.git' --exclude 'assets'
 INSTALL_DIR = /root/simplenode/
