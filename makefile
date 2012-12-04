@@ -1,9 +1,14 @@
-HOST = 50.116.43.128
+# stuff you probably want to change
+HOST = 74.207.227.169
 SERVICE_NAME = simplenode
-
 NODE_VERSION = 0.8.15
+
+# stuff you probably want to leave alone
 EXCLUDE_LIST = --exclude 'authorized_keys' --exclude 'config-*.json' --exclude 'node_modules' --exclude '.git' --exclude 'assets'
-INSTALL_DIR = /root/simplenode/
+INSTALL_DIR = /root/$(SERVICE_NAME)/
+
+
+################# commands you probably want to use
 
 help:
 	@echo ''
@@ -14,12 +19,8 @@ help:
 	@echo 'see makefile for: authorize, refresh, configure, restart, stop'
 	@echo ''
 
-# local
-
 start-local: osx-start
 getkey-local: osx-getkey
-
-# staging
 
 authorize-staging:
 	rsync -v ./authorized_keys root@$(HOST):/root/.ssh/
@@ -53,7 +54,7 @@ stop-staging:
 
 
 
-################################## Utilities
+###################### Utilities you should probably leave alone
 
 # osx
 
@@ -76,7 +77,7 @@ linode-provision:
 	apt-get install --yes graphicsmagick libgraphicsmagick1-dev
 	apt-get install --yes ntpdate
 
-	if [ `node --version` != "v$(NODE_VERSION)" ]; then \
+	if [ "`node --version` 2>&1" != "v$(NODE_VERSION)" ]; then \
 	cd /tmp \
 	&& wget http://nodejs.org/dist/v$(NODE_VERSION)/node-v$(NODE_VERSION).tar.gz \
 	&& tar xzvf node-v$(NODE_VERSION).tar.gz \
