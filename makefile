@@ -19,8 +19,9 @@ help:
 	@echo 'see makefile for: authorize, refresh, configure, restart, stop'
 	@echo ''
 
-start-local: osx-start
-getkey-local: osx-getkey
+setup: osx-setup
+start: osx-start
+getkey: osx-getkey
 
 authorize-staging:
 	rsync -v ./authorized_keys root@$(HOST):/root/.ssh/
@@ -57,6 +58,9 @@ stop-staging:
 ###################### Utilities you should probably leave alone
 
 # osx
+
+osx-setup:
+	npm install
 
 osx-start:
 	npm start

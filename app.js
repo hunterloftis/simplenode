@@ -2,36 +2,30 @@ var express = require('express');
 var timeout = require('connect-timeout');
 var stylus = require('stylus');
 var path = require('path');
-var _ = require('underscore');
 
-bailOnErrors();
-
+var b12 = require('./lib/base12');
 
 // Start
 
-var config = loadConfig();
-var app = createApp();
-app.get('/', showLanding);
-app.listen(config.http_port);
-console.log('app: listening on ' + config.http_port);
-
-
-// Details
-
-function loadConfig() {
-  var privates, defaults = require('./config-default.json');
-  try { privates = require('./config-private.json'); } catch (e) {}
-  return _.extend({}, defaults, privates);
-}
-
-function bailOnErrors() {
-  process.on('uncaughtException', function(err) {
-    console.log('exiting process for uncaught exception:', err.stack || err);
-    process.exit();
+if (module === require.main) {
+  b12.bail();
+  b12.balance(startApp, {
+    restart: false
   });
 }
 
-function createApp() {
+function startApp() {
+  var config = b12.config('config-default.json', 'config-private.json');
+  var app = createApp(config);
+  app.get('/', showLanding);
+  app.listen(config.http_port);
+
+  console.log('app: listening on ' + config.http_port);
+}
+
+// Details
+
+function createApp(config) {
   var timeouts = timeout({ throwError: true, time: config.timeout });
   var stylusMiddleware = stylus.middleware({
     src: path.join(__dirname, 'views'),

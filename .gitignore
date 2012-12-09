@@ -3,3 +3,4 @@ npm-debug.log
 assets
 .DS_Store
 config-private.json
+authorized_keys
