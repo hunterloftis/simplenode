@@ -7,23 +7,26 @@ var b12 = require('./lib/base12');
 
 // Start
 
+module.exports = startApp;
+
 if (module === require.main) {
-  b12.bail();
-  b12.balance(startApp, {
-    restart: false
-  });
+  b12
+    .main(startApp)
+    .config('config-default.json', 'config-private.json')
+    .restart(false)
+    .bail(true)
+    .start();
 }
 
-function startApp() {
-  var config = b12.config('config-default.json', 'config-private.json');
+// Details
+
+function startApp(config) {
   var app = createApp(config);
   app.get('/', showLanding);
   app.listen(config.http_port);
 
   console.log('app: listening on ' + config.http_port);
 }
-
-// Details
 
 function createApp(config) {
   var timeouts = timeout({ throwError: true, time: config.timeout });
@@ -35,8 +38,8 @@ function createApp(config) {
     force: config.stylus_force
   });
   var staticFiles = express['static'](path.join(__dirname, 'public'));
-
   var app = express();
+
   app
     .set('view engine', 'jade')
     .set('view cache', config.view_cache)
@@ -51,6 +54,8 @@ function createApp(config) {
     .use(app.router)
     .use(notFound)
     .use(errorHandler);
+
+  app.config = config;
 
   return app;
 
