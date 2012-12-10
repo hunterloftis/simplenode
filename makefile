@@ -1,15 +1,16 @@
 # stuff you probably want to change
 HOST = 74.207.227.169
 SERVICE_NAME = simplenode
-NODE_VERSION = 0.8.14
+NODE_VERSION = 0.8.15
 
 # stuff you probably want to leave alone
 EXCLUDE_LIST = --exclude 'authorized_keys' --exclude 'config-*.json' --exclude 'node_modules' --exclude '.git' --exclude 'assets'
 INSTALL_DIR = /root/$(SERVICE_NAME)
 GET_PUBLIC_KEY = $(shell cat authorized_keys)
-KEY_PATH = /root/.ssh/authorized_keys
+KEY_PATH = /root/.ssh
+KEY_FILE = $(KEY_PATH)/authorized_keys
 LOCAL_PATH = /root/node-$(NODE_VERSION)
-BIN_PATH = /root/node-$(NODE_VERSION)/bin/node
+BIN_PATH = $(LOCAL_PATH)/bin
 
 ################# commands you probably want to use
 
@@ -21,7 +22,7 @@ help:
 	@echo ''
 	@echo 'First-time deploy:'
 	@echo ''
-	@echo '1. make getkey-local         -> create ./authorized_keys from your id_rsa.pub'
+	@echo '1. make getkey               -> create ./authorized_keys from your id_rsa.pub'
 	@echo '2. make provision-staging    -> add ssh keys, update host, install node.js, create service'
 	@echo '3. make deploy-staging       -> deploy application code and config, restart application'
 	@echo ''
@@ -37,11 +38,11 @@ start: osx-start
 getkey: osx-getkey
 
 authorize-staging:
-	ssh root@$(HOST) "echo '$(GET_PUBLIC_KEY)' >> $(KEY_PATH)"
-	ssh root@$(HOST) "uniq $(KEY_PATH) /tmp/authorized_keys && cp /tmp/authorized_keys $(KEY_PATH)"
+	ssh root@$(HOST) "mkdir -p $(KEY_PATH) && touch $(KEY_FILE) && echo '$(GET_PUBLIC_KEY)' >> $(KEY_FILE)"
+	ssh root@$(HOST) "uniq $(KEY_FILE) /tmp/authorized_keys && cp /tmp/authorized_keys $(KEY_FILE)"
 
 refresh-staging:
-	rsync -v ./makefile root@$(HOST):$(INSTALL_DIR)
+	rsync -rv ./makefile root@$(HOST):$(INSTALL_DIR)/
 
 configure-staging:
 	scp config-default.json root@$(HOST):$(INSTALL_DIR)/config-default.json
@@ -55,7 +56,7 @@ provision-staging:
 deploy-staging:
 	make refresh-staging
 	make stop-staging
-	rsync -rv $(EXCLUDE_LIST) ./* root@$(HOST):$(INSTALL_DIR)
+	rsync -rv $(EXCLUDE_LIST) ./* root@$(HOST):$(INSTALL_DIR)/
 	make configure-staging
 	make restart-staging
 
@@ -118,12 +119,12 @@ linode-provision:
 	@echo 'created /etc/init/$(SERVICE_NAME).conf'
 
 linode-restart:
-	stop $(SERVICE_NAME) &2>&1
+	-stop $(SERVICE_NAME)
 	cd $(INSTALL_DIR) && $(BIN_PATH)/npm install
 	start $(SERVICE_NAME)
 
 linode-stop:
-	stop $(SERVICE_NAME) &2>&1
+	-stop $(SERVICE_NAME)
 
 
 # phony
