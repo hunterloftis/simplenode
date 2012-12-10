@@ -1,22 +1,35 @@
 # stuff you probably want to change
 HOST = 74.207.227.169
 SERVICE_NAME = simplenode
-NODE_VERSION = 0.8.15
+NODE_VERSION = 0.8.14
 
 # stuff you probably want to leave alone
 EXCLUDE_LIST = --exclude 'authorized_keys' --exclude 'config-*.json' --exclude 'node_modules' --exclude '.git' --exclude 'assets'
-INSTALL_DIR = /root/$(SERVICE_NAME)/
-
+INSTALL_DIR = /root/$(SERVICE_NAME)
+GET_PUBLIC_KEY = $(shell cat authorized_keys)
+KEY_PATH = /root/.ssh/authorized_keys
+LOCAL_PATH = /root/node-$(NODE_VERSION)
+BIN_PATH = /root/node-$(NODE_VERSION)/bin/node
 
 ################# commands you probably want to use
 
 help:
+	@echo 'Using locally:'
 	@echo ''
-	@echo '1. make getkey-local         -> create authorized_keys from your id_rsa.pub'
+	@echo '1. make setup                -> installs dependencies'
+	@echo '2. make start                -> runs locally'
+	@echo ''
+	@echo 'First-time deploy:'
+	@echo ''
+	@echo '1. make getkey-local         -> create ./authorized_keys from your id_rsa.pub'
 	@echo '2. make provision-staging    -> add ssh keys, update host, install node.js, create service'
 	@echo '3. make deploy-staging       -> deploy application code and config, restart application'
 	@echo ''
-	@echo 'see makefile for: authorize, refresh, configure, restart, stop'
+	@echo 'Continuous deployment:'
+	@echo ''
+	@echo '1. make deploy-staging'
+	@echo ''
+	@echo 'See makefile for: authorize, refresh, configure, restart, stop'
 	@echo ''
 
 setup: osx-setup
@@ -24,7 +37,8 @@ start: osx-start
 getkey: osx-getkey
 
 authorize-staging:
-	rsync -v ./authorized_keys root@$(HOST):/root/.ssh/
+	ssh root@$(HOST) "echo '$(GET_PUBLIC_KEY)' >> $(KEY_PATH)"
+	ssh root@$(HOST) "uniq $(KEY_PATH) /tmp/authorized_keys && cp /tmp/authorized_keys $(KEY_PATH)"
 
 refresh-staging:
 	rsync -v ./makefile root@$(HOST):$(INSTALL_DIR)
@@ -63,7 +77,7 @@ osx-setup:
 	npm install
 
 osx-start:
-	npm start
+	node app
 
 osx-getkey:
 	cp -i ~/.ssh/id_rsa.pub ./authorized_keys
@@ -81,11 +95,13 @@ linode-provision:
 	apt-get install --yes graphicsmagick libgraphicsmagick1-dev
 	apt-get install --yes ntpdate
 
-	if [ "`node --version` 2>&1" != "v$(NODE_VERSION)" ]; then \
+	mkdir -p $(LOCAL_PATH)
+	if [ "`$(BIN_PATH)/node --version` 2>&1" != "v$(NODE_VERSION)" ]; then \
 	cd /tmp \
 	&& wget http://nodejs.org/dist/v$(NODE_VERSION)/node-v$(NODE_VERSION).tar.gz \
 	&& tar xzvf node-v$(NODE_VERSION).tar.gz \
 	&& cd /tmp/node-v$(NODE_VERSION) \
+	&& ./configure --prefix=$(LOCAL_PATH) \
 	&& make install; fi
 
 	@echo '' > /etc/init/$(SERVICE_NAME).conf
@@ -97,17 +113,17 @@ linode-provision:
 	@echo 'umask 022' >> /etc/init/$(SERVICE_NAME).conf
 	@echo 'script' >> /etc/init/$(SERVICE_NAME).conf
 	@echo 'cd $(INSTALL_DIR)' >> /etc/init/$(SERVICE_NAME).conf
-	@echo 'npm start >> $(INSTALL_DIR).log 2>&1' >> /etc/init/$(SERVICE_NAME).conf
+	@echo '$(BIN_PATH)/node app >> $(INSTALL_DIR).log 2>&1' >> /etc/init/$(SERVICE_NAME).conf
 	@echo 'end script' >> /etc/init/$(SERVICE_NAME).conf
 	@echo 'created /etc/init/$(SERVICE_NAME).conf'
 
 linode-restart:
-	stop $(SERVICE_NAME) &2>1
-	npm install
+	stop $(SERVICE_NAME) &2>&1
+	cd $(INSTALL_DIR) && $(BIN_PATH)/npm install
 	start $(SERVICE_NAME)
 
 linode-stop:
-	stop $(SERVICE_NAME) &2>1
+	stop $(SERVICE_NAME) &2>&1
 
 
 # phony
