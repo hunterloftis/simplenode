@@ -97,7 +97,7 @@ linode-provision:
 	apt-get install --yes ntpdate
 
 	mkdir -p $(LOCAL_PATH)
-	if [ "`$(BIN_PATH)/node --version` 2>&1" != "v$(NODE_VERSION)" ]; then \
+	if [ "`$(BIN_PATH)/node --version 2>&1`" != "v$(NODE_VERSION)" ]; then \
 	cd /tmp \
 	&& wget http://nodejs.org/dist/v$(NODE_VERSION)/node-v$(NODE_VERSION).tar.gz \
 	&& tar xzvf node-v$(NODE_VERSION).tar.gz \
